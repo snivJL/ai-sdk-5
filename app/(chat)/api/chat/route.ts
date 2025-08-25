@@ -26,9 +26,9 @@ import {
 import { auth, UserType } from "@/app/(auth)/auth";
 import { generateTitleFromUserMessage } from "../../actions";
 import { generateUUID } from "@/lib/utils";
+import { createSwot } from "@/lib/ai/tools/create-swot-tool";
 
 export const maxDuration = 60;
-
 // let globalStreamContext: ResumableStreamContext | null = null;
 
 // function getStreamContext() {
@@ -53,11 +53,9 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   let requestBody: PostRequestBody;
-  console.log("API HIT");
 
   try {
     const json = await req.json();
-    console.log(json);
 
     requestBody = postRequestBodySchema.parse(json);
     console.log("Request body", requestBody);
@@ -69,7 +67,6 @@ export async function POST(req: Request) {
   try {
     const { id, message } = requestBody;
     const session = await auth();
-    console.log(id, message);
     if (!session?.user) {
       return new ChatSDKError("unauthorized:chat").toResponse();
     }
@@ -88,7 +85,7 @@ export async function POST(req: Request) {
     const chat = await getChatById({ id });
     if (!chat) {
       const title = await generateTitleFromUserMessage({
-        message,
+        message: message as UIMessage,
       });
       await saveChat({
         id,
@@ -104,7 +101,27 @@ export async function POST(req: Request) {
 
     const previousMessages = (await getMessagesByChatId({ id })) as UIMessage[];
 
-    const messages = [...previousMessages, message];
+    // Type-safe message conversion - explicitly cast to avoid type issues
+    const allMessages = [...previousMessages, message];
+    const normalizedUIMessages = [...previousMessages, message].map((m) => ({
+      ...m,
+      parts: m.parts.map((p: any) => {
+        if (p.type !== "file") return p;
+        return {
+          type: "file",
+          url: p.url ?? p.data, // <-- use url (NOT data) on UI part
+          mediaType: p.mediaType,
+          filename: p.filename ?? p.fileName, // <-- filename (NOT fileName)
+        };
+      }),
+    }));
+
+    const modelMessages = convertToModelMessages(normalizedUIMessages);
+
+    const fileAttachments = message.parts.filter(
+      (part) => part.type === "file"
+    );
+
     await saveMessages({
       messages: [
         {
@@ -112,7 +129,7 @@ export async function POST(req: Request) {
           id: generateUUID(),
           role: "user",
           parts: message.parts,
-          attachments: message.experimental_attachments ?? [],
+          attachments: fileAttachments,
           createdAt: new Date(),
         },
       ],
@@ -125,29 +142,32 @@ export async function POST(req: Request) {
         const result = streamText({
           model: openai("gpt-4o"),
           system: systemPrompt,
-          messages: convertToModelMessages(messages),
+          messages: modelMessages,
           experimental_transform: smoothStream({
             delayInMs: 20,
             chunking: "word",
           }),
+          activeTools: ["createSwot"],
+          tools: {
+            createSwot: createSwot(),
+            createMemo: createMemo(),
+          },
           stopWhen: [stepCountIs(5)],
-          // tools: {
-          //   getInformation: getInformationTool,
-          // },
           onError(error) {
             console.error("❌ streamText error:", error);
           },
         });
+
         writer.merge(
           result.toUIMessageStream({
-            onFinish: async ({ messages, responseMessage }) => {
+            onFinish: async ({ responseMessage }) => {
               if (session.user?.id) {
-                console.log(
-                  "Finding assistant message",
-                  messages,
-                  responseMessage
-                );
                 try {
+                  // CHANGE 3: Extract file attachments from response message parts
+                  const responseFileAttachments = responseMessage.parts.filter(
+                    (p) => p.type === "file"
+                  );
+
                   await saveMessages({
                     messages: [
                       {
@@ -155,9 +175,7 @@ export async function POST(req: Request) {
                         chatId: id,
                         role: responseMessage.role,
                         parts: responseMessage.parts,
-                        attachments: responseMessage.parts.filter(
-                          (p) => p.type === "file"
-                        ),
+                        attachments: responseFileAttachments, // CHANGE 4: Use filtered file parts
                         createdAt: new Date(),
                       },
                     ],

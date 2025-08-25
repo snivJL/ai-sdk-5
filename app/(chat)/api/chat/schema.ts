@@ -1,9 +1,18 @@
 import { z } from "zod";
 
 const textPartSchema = z.object({
+  type: z.literal("text"),
   text: z.string().min(1).max(2000),
-  type: z.enum(["text"]),
 });
+
+const filePartSchema = z.object({
+  type: z.literal("file"),
+  fileName: z.string(),
+  mediaType: z.string(),
+  data: z.string(), // base64 encoded data
+});
+
+const messagePartSchema = z.union([textPartSchema, filePartSchema]);
 
 export const postRequestBodySchema = z.object({
   id: z.uuid(),
@@ -11,21 +20,7 @@ export const postRequestBodySchema = z.object({
     id: z.string(),
     createdAt: z.coerce.date().optional().default(new Date()),
     role: z.enum(["user"]),
-    parts: z.array(textPartSchema),
-    experimental_attachments: z
-      .array(
-        z.object({
-          url: z.string().url(),
-          name: z.string().min(1).max(2000),
-          contentType: z.enum([
-            "image/png",
-            "image/jpg",
-            "image/jpeg",
-            "application/pdf",
-          ]),
-        })
-      )
-      .optional(),
+    parts: z.array(messagePartSchema).min(1), // At least one part required
   }),
   selectedChatModel: z
     .enum(["chat-model", "chat-model-reasoning"])

@@ -10,9 +10,7 @@ import { Chat } from "@/components/chat/chat";
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const { id } = params;
-  console.log("Chat id", id);
   const chat = await getChatById({ id });
-  console.log("chat", chat, id);
   // if (!chat) {
   //   notFound();
   // }
@@ -37,10 +35,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     id,
   });
 
-  console.log("messagesFromDb", messagesFromDb);
   const cookieStore = await cookies();
   const chatModelFromCookie = cookieStore.get("chat-model");
-  console.log("chatModelFromCookie", chatModelFromCookie);
 
   if (!chatModelFromCookie) {
     return (

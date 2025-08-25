@@ -59,11 +59,11 @@ function PureChatHeader({
       {attachments.length > 0 && (
         <>
           <Separator orientation="vertical" className="h-6" />
-          {/* <AttachmentDisplay
+          <AttachmentDisplay
             attachments={attachments}
             setAttachments={setAttachments}
             className="flex-1 min-w-0"
-          /> */}
+          />
         </>
       )}
     </header>

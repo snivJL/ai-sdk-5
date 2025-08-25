@@ -8,12 +8,17 @@ import {
 } from "@/components/ui/tooltip";
 
 import { Button } from "../ui/button";
-import { ArrowLeftIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  PanelRightClose,
+  PanelRightOpenIcon,
+} from "lucide-react";
 
 export function SidebarToggle({
   className,
 }: ComponentProps<typeof SidebarTrigger>) {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, open } = useSidebar();
 
   return (
     <Tooltip>
@@ -24,7 +29,11 @@ export function SidebarToggle({
           variant="outline"
           className="md:px-2 md:h-fit"
         >
-          <ArrowLeftIcon size={16} />
+          {!open ? (
+            <PanelRightClose size={16} />
+          ) : (
+            <PanelRightOpenIcon size={16} />
+          )}
         </Button>
       </TooltipTrigger>
       <TooltipContent align="start">Toggle Sidebar</TooltipContent>
