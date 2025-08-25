@@ -1,50 +1,45 @@
 import { tool } from "ai";
 import z from "zod";
+const metadataSchema = z.object({
+  title: z.string(),
+  relevance: z.number(),
+  company: z.string(),
+  industry: z.string(),
+  year: z.number(),
+});
 
+const vespaDocumentSchema = z.object({
+  content: z.string(),
+  metadata: z.object(metadataSchema),
+});
 export const getInformationTool = tool({
   description: `get information from your knowledge base to answer questions.`,
   inputSchema: z.object({
-    question: z.string().describe("the users question"),
-    similarQuestions: z.array(z.string()).describe("keywords to search"),
+    question: z.string().describe("the user's question"),
   }),
+  outputSchema: z.array(z.object(vespaDocumentSchema)),
   execute: async ({ question }) => {
-    // const results = await Promise.all(
-    //   similarQuestions.map(async (question) => {
-    //     const response = await fetch("http://localhost:8000/api/query", {
-    //       method: "POST",
-    //       headers: { "Content-Type": "application/json" },
-    //       body: JSON.stringify({ query: question }),
-    //     });
-    //      const response = await fetch("http://localhost:8000/api/query", {
-    //       method: "POST",
-    //       headers: { "Content-Type": "application/json" },
-    //       body: JSON.stringify({ query: question }),
-    //     });
-    //     if (!response.ok) return []; // or throw error
-    //     const data = await response.json();
-    //     // Expecting: { documents: [...] }
-    //     return data.documents || [];
-    //   })
-    // );
     const response = await fetch("http://localhost:8000/api/query", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query: question }),
+      body: JSON.stringify({
+        query: question,
+        industry: "Human Resources Technology",
+      }),
     });
     if (!response.ok) return [];
     const data = await response.json();
+    console.log(
+      data.documents.map((doc) => ({
+        metadata: {
+          title: doc.metadata.title,
+          relevance: doc.metadata.relevance,
+          company: doc.metadata.company,
+          industry: doc.metadata.industry,
+          year: doc.metadata.year,
+        },
+      }))
+    );
     return data.documents || [];
-    // const results = await Promise.all(
-    // const allDocs = results.flat();
-
-    // const seen = new Set();
-    // const uniqueDocs = allDocs.filter((doc) => {
-    //   const key = doc.metadata.id;
-    //   if (seen.has(key)) return false;
-    //   seen.add(key);
-    //   return true;
-    // });
-    console.log("found docs", uniqueDocs.length);
-    return uniqueDocs.slice(3);
   },
 });

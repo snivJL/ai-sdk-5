@@ -55,7 +55,7 @@ export function MessagePart({ part, messageRole, index }: MessagePartProps) {
           </summary>
           <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-700 rounded-md space-y-2">
             <div>
-              <p className="font-semibold">{`Retrieved ${part.output.length} documents:`}</p>
+              <p className="font-semibold">{`Retrieved ${part.output.length} document(s) from Vespa:`}</p>
             </div>
 
             <div>
